@@ -1,0 +1,146 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{env.PING_NAME}}
+  namespace: {{ping_namespace}}
+  labels:
+    component: {{PING_NAME}}
+    app: {{env.ping_name}}
+spec:
+  replicas: {{env.ping_replicas}}
+  revisionHistoryLimit: 2
+  template:
+    metadata:
+      name: {{env.ping_name}}
+      labels:
+        app: {{env.ping_name}}
+        component: {{env.ping_name}}
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry-key
+      containers:
+        - name: hpin
+          image: {{env.ping_registry}}/{{env.ping_hpin_image}}:{{env.ping_hpin_tag}}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: app
+              containerPort: {{env.ping_hpin_ports_app}}
+          resources:
+            requests:
+              cpu: {{env.ping_hpin_requests_cpu}}
+              memory: {{env.ping_hpin_requests_memory}}
+            limits:
+              cpu: {{env.ping_hpin_limits_cpu}}
+              memory: {{env.ping_hpin_limits_memory}}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 5000
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 5000
+            initialDelaySeconds: 6
+            periodSeconds: 3
+          env:
+            - name: HPIN_LOGLEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: hpin.loglevel
+            - name: HPIN_REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: redis_host
+            - name: HPIN_REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: redis_port
+        - name: icin
+          image: {{env.ping_registry}}/{{env.ping_icin_image}}:{{env.ping_icin_tag}}
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: {{env.ping_icin_requests_cpu}}
+              memory: {{env.ping_icin_requests_memory}}
+            limits:
+              cpu: {{env.ping_icin_limits_cpu}}
+              memory: {{env.ping_icin_limits_memory}}
+          env:
+            - name: ICIN_LOGLEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: icin.loglevel
+            - name: ICIN_STDOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: icin.stdout
+            - name: ICIN_CONSUL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: consul_host
+            - name: ICIN_CONSUL_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: consul_port
+            - name: ICIN_RMQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: rmq_host
+            - name: ICIN_RMQ_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: rmq_port
+            - name: ICIN_REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: redis_host
+            - name: ICIN_REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: redis_port
+            - name: ICIN_CASS_NODES
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: cass_nodes
+            - name: ICIN_CASS_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: cass_user
+            - name: ICIN_CASS_PW
+              valueFrom:
+                configMapKeyRef:
+                  name: {{env.ping_name}}-configmap
+                  key: cass_pw
+        - name: redis
+          image: {{env.ping_registry}}/{{env.ping_redis_image}}:{{env.ping_redis_tag}}
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: {{env.ping_redis_requests_cpu}}
+              memory: {{env.ping_redis_requests_memory}}
+            limits:
+              cpu: {{env.ping_redis_limits_cpu}}
+              memory: {{env.ping_redis_limits_memory}}
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - /usr/local/bin/redis-cli -h $(hostname) ping
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
